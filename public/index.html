@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Distributed Real-Time Chat</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; }
+  #auth, #chat { display: none; }
+  #messages { list-style: none; padding: 0; height: 320px; overflow-y: auto; border: 1px solid #ddd; padding: 8px; }
+  #messages li { margin-bottom: 6px; }
+  input, button { padding: 8px; margin: 4px 0; }
+  #notif { color: #b45309; font-size: 14px; min-height: 20px; }
+</style>
+</head>
+<body>
+  <h2>Distributed Real-Time Chat</h2>
+
+  <div id="auth">
+    <input id="username" placeholder="username" />
+    <input id="password" type="password" placeholder="password" />
+    <button onclick="register()">Register</button>
+    <button onclick="login()">Login</button>
+    <p id="authError" style="color:red"></p>
+  </div>
+
+  <div id="chat">
+    <input id="room" value="general" />
+    <button onclick="joinRoom()">Join room</button>
+    <div id="notif"></div>
+    <ul id="messages"></ul>
+    <input id="text" placeholder="type a message" style="width:70%" onkeydown="if(event.key==='Enter') send()" />
+    <button onclick="send()">Send</button>
+  </div>
+
+<script>
+  let token = null, socket = null, currentRoom = null;
+  document.getElementById('auth').style.display = 'block';
+
+  async function register() {
+    await authRequest('/api/register');
+  }
+  async function login() {
+    await authRequest('/api/login');
+  }
+  async function authRequest(url) {
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      document.getElementById('authError').innerText = data.error;
+      return;
+    }
+    token = data.token;
+    document.getElementById('auth').style.display = 'none';
+    document.getElementById('chat').style.display = 'block';
+    connectSocket();
+  }
+
+  function connectSocket() {
+    socket = io({ auth: { token } });
+    socket.on('room_history', ({ history }) => {
+      document.getElementById('messages').innerHTML = '';
+      history.forEach(addMessage);
+    });
+    socket.on('new_message', addMessage);
+    socket.on('notification', ({ room, from, preview }) => {
+      const el = document.getElementById('notif');
+      el.innerText = `🔔 New message in #${room} from ${from}: ${preview}`;
+      setTimeout(() => (el.innerText = ''), 4000);
+    });
+    socket.on('presence', ({ username, status }) => {
+      console.log(`${username} is ${status}`);
+    });
+  }
+
+  function joinRoom() {
+    currentRoom = document.getElementById('room').value;
+    socket.emit('join_room', { roomName: currentRoom });
+  }
+
+  function send() {
+    const text = document.getElementById('text').value;
+    if (!text.trim() || !currentRoom) return;
+    socket.emit('send_message', { roomName: currentRoom, text });
+    document.getElementById('text').value = '';
+  }
+
+  function addMessage(m) {
+    const li = document.createElement('li');
+    li.innerText = `[${new Date(m.createdAt).toLocaleTimeString()}] ${m.senderUsername || m.senderId}: ${m.text}`;
+    document.getElementById('messages').appendChild(li);
+    document.getElementById('messages').scrollTop = 1e9;
+  }
+</script>
+</body>
+</html>
