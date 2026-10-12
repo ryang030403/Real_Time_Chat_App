@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node test/smoke.test.js"
+    "test": "node test/smoke.test.js",
+    "test:load": "node test/load.test.js"
   },
   "keywords": ["websockets", "socket.io", "chat", "real-time", "nodejs"],
   "author": "Ryan Joshua George",

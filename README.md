@@ -33,6 +33,26 @@ An end-to-end smoke test spins up the real server, connects two authenticated We
 npm test
 ```
 
+## Load Test Results
+
+`test/load.test.js` starts the server in its own process, registers 100 users, opens 100 concurrent authenticated WebSocket connections in one room, then sends 200 messages from random clients (one every 10ms). Every client must receive every message: 20,000 deliveries per run.
+
+```bash
+npm run test:load          # tune with CLIENTS, MESSAGES, INTERVAL_MS env vars
+```
+
+Results from three consecutive runs (localhost, Windows 11, Node 25):
+
+| Metric | Result |
+|---|---|
+| Concurrent connections | 100 |
+| Deliveries | 20,000 / 20,000 (0 dropped) |
+| Broadcast latency, avg | 1.9 ms |
+| Broadcast latency, p95 / p99 | 3.1–3.3 ms / 3.9–4.6 ms |
+| Throughput | ~6,400 deliveries/sec |
+
+These are single-node, same-machine numbers: they measure the server's fan-out cost, not network latency.
+
 ## API
 
 | Method | Endpoint | Description |
